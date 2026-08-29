@@ -11,7 +11,7 @@
   var ใบลาทั้งหมด;
 
   try {
-    var ผลลัพธ์ = await window.firestoreGetDocs(window.firestoreCollection(window.db, "leaveRequests"));
+    var ผลลัพธ์ = await window.db.collection("leaveRequests").get();
     var ใบลาจากฐานข้อมูล = [];
     ผลลัพธ์.forEach(function (เอกสาร) {
       ใบลาจากฐานข้อมูล.push(Object.assign({ id: เอกสาร.id }, เอกสาร.data()));

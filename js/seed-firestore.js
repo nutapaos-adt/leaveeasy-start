@@ -3,11 +3,6 @@
 // ใช้ข้อมูลชุดเดียวกับ window.LEAVE_DATA (js/data.js)
 // ─────────────────────────────────────────────────────────────
 
-import {
-  doc,
-  setDoc
-} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-
 var ปุ่ม = document.getElementById("ปุ่มเริ่ม");
 var สถานะ = document.getElementById("สถานะ");
 
@@ -25,19 +20,19 @@ async function เริ่มใส่ข้อมูล() {
   try {
     บันทึก("กำลังใส่ users…");
     for (var u of window.LEAVE_DATA.users) {
-      await setDoc(doc(db, "users", u.id), { name: u.name, email: u.email, role: u.role });
+      await db.collection("users").doc(u.id).set({ name: u.name, email: u.email, role: u.role });
       บันทึก("  ✓ users/" + u.id);
     }
 
     บันทึก("กำลังใส่ leaveTypes…");
     for (var t of window.LEAVE_DATA.leaveTypes) {
-      await setDoc(doc(db, "leaveTypes", t.id), { name: t.name });
+      await db.collection("leaveTypes").doc(t.id).set({ name: t.name });
       บันทึก("  ✓ leaveTypes/" + t.id);
     }
 
     บันทึก("กำลังใส่ leaveRequests…");
     for (var r of window.LEAVE_DATA.leaveRequests) {
-      await setDoc(doc(db, "leaveRequests", r.id), {
+      await db.collection("leaveRequests").doc(r.id).set({
         title: r.title, reason: r.reason, status: r.status,
         requesterId: r.requesterId, requesterName: r.requesterName,
         approverId: r.approverId, approverName: r.approverName,
@@ -49,7 +44,7 @@ async function เริ่มใส่ข้อมูล() {
 
     บันทึก("กำลังใส่ approvals (โฟลเดอร์ย่อยของแต่ละใบลา)…");
     for (var a of window.LEAVE_DATA.approvals) {
-      await setDoc(doc(db, "leaveRequests", a.requestId, "approvals", a.id), {
+      await db.collection("leaveRequests").doc(a.requestId).collection("approvals").doc(a.id).set({
         authorId: a.authorId, authorName: a.authorName,
         message: a.message, createdAt: a.createdAt
       });
