@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ใส่ข้อมูลตัวอย่างลง Firestore · LeaveEasy</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/data.js" defer></script>
+  <script src="js/firebase-config.js" type="module"></script>
+  <script src="js/seed-firestore.js" type="module"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>ใส่ข้อมูลตัวอย่างลง Firestore</h1>
+    <p class="subtitle">
+      หน้านี้เป็นเครื่องมือใช้ครั้งเดียว (one-time) เอาข้อมูลปลอมชุดเดียวกับที่ขึ้นบนหน้าจอ
+      ใส่ลงโฟลเดอร์ <code>users</code> · <code>leaveTypes</code> · <code>leaveRequests</code>
+      (พร้อมโฟลเดอร์ย่อย <code>approvals</code>) บน Firestore จริง
+    </p>
+    <p class="hint">กดซ้ำได้ไม่เป็นไร — ใช้ชื่อไฟล์เดิม (u001, lt001, lr001, …) จึงเขียนทับ ไม่สร้างซ้ำ</p>
+    <div class="card">
+      <button type="button" class="btn" id="ปุ่มเริ่ม">เริ่มใส่ข้อมูลตัวอย่าง</button>
+      <pre id="สถานะ" style="margin-top:16px; white-space:pre-wrap;"></pre>
+    </div>
+  </div>
+</body>
+</html>
