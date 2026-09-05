@@ -3,11 +3,16 @@
 // สัปดาห์ที่ 6 (ต้นสัปดาห์): เพิ่ม แก้ ลบ ในหน่วยความจำเท่านั้น
 // ─────────────────────────────────────────────────────────────
 
-(function () {
+(async function () {
+  var ผู้ใช้ปัจจุบัน = await รอผู้ใช้ปัจจุบัน();
+  var แก้ไขได้ = ผู้ใช้ปัจจุบัน.role === "hr";   // ตาม ACL.md — เพิ่ม/แก้/ลบ ประเภทการลาได้เฉพาะฝ่ายบุคคล
+
   var รายการ = window.LEAVE_DATA.leaveTypes.slice();   // ทำสำเนาไว้แก้
   var ที่วางตาราง = document.getElementById("ตารางประเภท");
   var ช่องชื่อใหม่ = document.getElementById("ชื่อประเภทใหม่");
   var กล่องเตือน = document.getElementById("เตือนประเภท");
+
+  if (!แก้ไขได้) document.getElementById("การ์ดเพิ่มประเภท").classList.add("hidden");
 
   วาดตาราง();
   document.getElementById("ปุ่มเพิ่ม").addEventListener("click", เพิ่มประเภท);
@@ -20,11 +25,11 @@
 
     var html = "<table><thead><tr><th>ชื่อประเภทการลา</th><th>จัดการ</th></tr></thead><tbody>";
     รายการ.forEach(function (ประเภท) {
-      html +=
-        "<tr><td>" + esc(ประเภท.name) + "</td><td>" +
-        '<button type="button" class="btn-ghost" data-edit="' + esc(ประเภท.id) + '">แก้ไข</button> ' +
-        '<button type="button" class="btn-danger" data-del="' + esc(ประเภท.id) + '">ลบ</button>' +
-        "</td></tr>";
+      var ปุ่มจัดการ = แก้ไขได้
+        ? '<button type="button" class="btn-ghost" data-edit="' + esc(ประเภท.id) + '">แก้ไข</button> ' +
+          '<button type="button" class="btn-danger" data-del="' + esc(ประเภท.id) + '">ลบ</button>'
+        : "";
+      html += "<tr><td>" + esc(ประเภท.name) + "</td><td>" + ปุ่มจัดการ + "</td></tr>";
     });
     html += "</tbody></table>";
     ที่วางตาราง.innerHTML = html;
