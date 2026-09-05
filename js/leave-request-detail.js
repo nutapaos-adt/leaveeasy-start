@@ -1,10 +1,12 @@
 // ─────────────────────────────────────────────────────────────
 // js/leave-request-detail.js — หน้าที่ 3 รายละเอียดใบลา
-// สัปดาห์ที่ 7: อ่านใบลาและความเห็นจริงจาก Firestore · เปลี่ยนสถานะเขียนจริง
+// สัปดาห์ที่ 7: อ่านใบลาและความเห็นจริงจาก Firestore · เปลี่ยนสถานะ/ลบเขียนจริง
+// จำกัดปุ่มตามบทบาทและเจ้าของใบลา (ดู ACL.md)
 // (การส่งความเห็นใหม่ยังเก็บไว้แค่ในหน่วยความจำ — ยังไม่เขียนลง Firestore)
 // ─────────────────────────────────────────────────────────────
 
 (async function () {
+  var ผู้ใช้ปัจจุบัน = await รอผู้ใช้ปัจจุบัน();
   var รหัสใบลา = ค่าจากURL("id");
   var กล่องใบลา = document.getElementById("กล่องใบลา");
   var กล่องความเห็น = document.getElementById("กล่องความเห็น");
@@ -29,9 +31,18 @@
     return;
   }
 
+  var เป็นผู้อนุมัติหรือฝ่ายบุคคล = ผู้ใช้ปัจจุบัน.role === "manager" || ผู้ใช้ปัจจุบัน.role === "hr";
+  var เป็นเจ้าของใบลา = ใบ.requesterId === ผู้ใช้ปัจจุบัน.uid;
+  var ลบได้ = ผู้ใช้ปัจจุบัน.role === "employee" && เป็นเจ้าของใบลา;
+
   วาดใบลา();
   วาดความเห็น();
   กล่องความเห็น.classList.remove("hidden");
+
+  // ตาม ACL.md — employee เขียนความเห็นได้เฉพาะใบของตัวเอง ส่วนผู้อนุมัติ/ฝ่ายบุคคลเขียนได้ทุกใบ
+  if (!เป็นผู้อนุมัติหรือฝ่ายบุคคล && !เป็นเจ้าของใบลา) {
+    document.getElementById("เขียนความเห็น").classList.add("hidden");
+  }
 
   document.getElementById("ปุ่มส่งความเห็น").addEventListener("click", ส่งความเห็น);
 
@@ -52,32 +63,37 @@
       return '<div class="field-row"><span class="k">' + r[0] + "</span><span>" + r[1] + "</span></div>";
     }).join("");
 
-    // ปุ่มอนุมัติ / ไม่อนุมัติ / ลบ ขึ้นเฉพาะใบที่ยังรอพิจารณา
-    if (ใบ.status === "รอพิจารณา") {
+    // ปุ่มอนุมัติ/ไม่อนุมัติ เฉพาะผู้อนุมัติ/ฝ่ายบุคคล · ปุ่มลบ เฉพาะเจ้าของที่เป็น employee (ตาม ACL.md)
+    if (ใบ.status === "รอพิจารณา" && เป็นผู้อนุมัติหรือฝ่ายบุคคล) {
       html +=
         '<div class="btn-row">' +
         '<button type="button" class="btn-ok" id="ปุ่มอนุมัติ">อนุมัติ</button>' +
         '<button type="button" class="btn-danger" id="ปุ่มไม่อนุมัติ">ไม่อนุมัติ</button>' +
-        '<button type="button" class="btn-danger" id="ปุ่มลบ">ลบใบลา</button>' +
         "</div>";
+    } else if (ใบ.status === "รอพิจารณา" && ลบได้) {
+      html +=
+        '<p class="hint">รอหัวหน้าพิจารณา</p>' +
+        '<div class="btn-row"><button type="button" class="btn-danger" id="ปุ่มลบใบลา">ลบใบลานี้</button></div>';
+    } else if (ใบ.status === "รอพิจารณา") {
+      html += '<p class="hint">รอหัวหน้าพิจารณา</p>';
     } else {
       html += '<p class="hint">ใบนี้พิจารณาแล้ว จึงเปลี่ยนสถานะต่อไม่ได้</p>';
     }
 
     กล่องใบลา.innerHTML = html;
 
-    if (ใบ.status === "รอพิจารณา") {
+    if (ใบ.status === "รอพิจารณา" && เป็นผู้อนุมัติหรือฝ่ายบุคคล) {
       document.getElementById("ปุ่มอนุมัติ").addEventListener("click", function () { เปลี่ยนสถานะ("อนุมัติ"); });
       document.getElementById("ปุ่มไม่อนุมัติ").addEventListener("click", function () { เปลี่ยนสถานะ("ไม่อนุมัติ"); });
-      document.getElementById("ปุ่มลบ").addEventListener("click", ลบใบลา);
+    }
+    if (document.getElementById("ปุ่มลบใบลา")) {
+      document.getElementById("ปุ่มลบใบลา").addEventListener("click", ลบใบลา);
     }
   }
 
-  // ── ลบใบลา — ต้องยืนยันก่อนทุกครั้ง ──
+  // ── ลบใบลา — เขียนจริงลง Firestore ต้องยืนยันก่อนทุกครั้ง (เฉพาะเจ้าของที่เป็น employee และยังรอพิจารณา) ──
   async function ลบใบลา() {
-    if (!confirm("ยืนยันลบใบลานี้? การลบไม่สามารถย้อนกลับได้")) {
-      return;
-    }
+    if (!confirm('ยืนยันการลบใบลา "' + ใบ.title + '" หรือไม่ — ลบแล้วกู้คืนไม่ได้')) return;
     try {
       await window.db.collection("leaveRequests").doc(ใบ.id).delete();
       location.href = "leave-requests.html";
@@ -139,11 +155,10 @@
     }
     เตือน.classList.add("hidden");
 
-    // สัปดาห์ที่ 6 ยังไม่มีล็อกอิน จึงสมมติว่าผู้เขียนคือ สมหญิง รักงาน
     ความเห็น.push({
       id: "ap-ใหม่-" + Date.now(),
       requestId: ใบ.id,
-      authorId: "u002", authorName: "สมหญิง รักงาน",
+      authorId: ผู้ใช้ปัจจุบัน.uid, authorName: ผู้ใช้ปัจจุบัน.name,
       message: ข้อความ,
       createdAt: เวลาตอนนี้()
     });

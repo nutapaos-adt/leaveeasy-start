@@ -1,10 +1,11 @@
 // ─────────────────────────────────────────────────────────────
-// js/firebase-config.js — เชื่อมต่อ Firebase / Firestore
-// ตั้งค่าเดียว ใช้ร่วมกันทุกหน้าที่ต้องอ่าน/เขียน Firestore
+// js/firebase-config.js — เชื่อมต่อ Firebase / Firestore / Authentication
+// ตั้งค่าเดียว ใช้ร่วมกันทุกหน้าที่ต้องอ่าน/เขียน Firestore หรือเช็คสถานะล็อกอิน
 //
 // ใช้ Firebase SDK แบบ "compat" (สคริปต์ธรรมดา ไม่ใช่ ES module)
 // เพราะโปรเจกต์นี้ไม่มีขั้นตอน build — ให้ดับเบิลคลิกเปิดไฟล์ได้ตามปกติ
-// (ต้องโหลดไฟล์นี้ต่อจาก firebase-app-compat.js และ firebase-firestore-compat.js เท่านั้น)
+// (ต้องโหลดไฟล์นี้ต่อจาก firebase-app-compat.js, firebase-firestore-compat.js
+//  และ firebase-auth-compat.js เท่านั้น)
 //
 // ⚠️ apiKey ของ Firebase Web App ไม่ใช่ความลับ — ออกแบบมาให้อยู่ใน
 // โค้ดฝั่ง client ได้ สิ่งที่ป้องกันข้อมูลจริงคือ Firestore Security Rules
@@ -22,3 +23,4 @@ var firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 window.db = firebase.firestore();
+window.auth = firebase.auth();
