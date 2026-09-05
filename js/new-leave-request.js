@@ -1,7 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 // js/new-leave-request.js — หน้าที่ 2 ยื่นใบลาใหม่
-// สัปดาห์ที่ 6 (ต้นสัปดาห์): เก็บไว้ในหน่วยความจำของเบราว์เซอร์เท่านั้น
-// ยังไม่บันทึกลงฐานข้อมูล (เป็นงานของสัปดาห์ที่ 7)
+// สัปดาห์ที่ 7: บันทึกใบลาใหม่ลงโฟลเดอร์ leaveRequests บน Firestore จริง
 // ─────────────────────────────────────────────────────────────
 
 (function () {
@@ -17,7 +16,7 @@
     ช่องประเภท.appendChild(ตัวเลือก);
   });
 
-  ฟอร์ม.addEventListener("submit", function (e) {
+  ฟอร์ม.addEventListener("submit", async function (e) {
     e.preventDefault();
 
     var ค่า = {
@@ -40,9 +39,8 @@
 
     var ประเภท = window.LEAVE_DATA.leaveTypes.find(function (t) { return t.id === ค่า.leaveTypeId; });
 
-    // สัปดาห์ที่ 6 ยังไม่มีล็อกอิน จึงสมมติว่าผู้ขอลาคือ สมชาย ใจดี
+    // ยังไม่มีล็อกอิน จึงสมมติว่าผู้ขอลาคือ สมชาย ใจดี
     var ใบใหม่ = {
-      id: "lr-ใหม่-" + Date.now(),
       title: ค่า.title,
       reason: ค่า.reason,
       status: "รอพิจารณา",                       // ใบใหม่เริ่มที่ รอพิจารณา เสมอ
@@ -54,11 +52,13 @@
       createdAt: เวลาตอนนี้()
     };
 
-    var รายการ = JSON.parse(sessionStorage.getItem("ใบลาที่ยื่นใหม่") || "[]");
-    รายการ.push(ใบใหม่);
-    sessionStorage.setItem("ใบลาที่ยื่นใหม่", JSON.stringify(รายการ));
-
-    location.href = "leave-requests.html";
+    try {
+      await window.db.collection("leaveRequests").add(ใบใหม่);
+      location.href = "leave-requests.html";
+    } catch (ผิดพลาด) {
+      console.error("บันทึกใบลาลง Firestore ไม่สำเร็จ:", ผิดพลาด);
+      เตือน("บันทึกไม่สำเร็จ (" + ผิดพลาด.message + ") — ลองใหม่อีกครั้ง");
+    }
   });
 
   function เตือน(ข้อความ) {

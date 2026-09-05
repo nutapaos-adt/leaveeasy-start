@@ -6,21 +6,18 @@
 (async function () {
   var กล่อง = document.getElementById("ผลลัพธ์");
 
-  // ใบที่เพิ่งยื่นในหน้าถัดไประหว่างเปิดเบราว์เซอร์นี้ (ยังไม่เขียนลง Firestore จริง — ของสัปดาห์ 7)
-  var ใบลาที่ยื่นใหม่ = JSON.parse(sessionStorage.getItem("ใบลาที่ยื่นใหม่") || "[]");
   var ใบลาทั้งหมด;
 
   try {
     var ผลลัพธ์ = await window.db.collection("leaveRequests").get();
-    var ใบลาจากฐานข้อมูล = [];
+    ใบลาทั้งหมด = [];
     ผลลัพธ์.forEach(function (เอกสาร) {
-      ใบลาจากฐานข้อมูล.push(Object.assign({ id: เอกสาร.id }, เอกสาร.data()));
+      ใบลาทั้งหมด.push(Object.assign({ id: เอกสาร.id }, เอกสาร.data()));
     });
-    ใบลาทั้งหมด = ใบลาจากฐานข้อมูล.concat(ใบลาที่ยื่นใหม่);
   } catch (ผิดพลาด) {
     console.error("อ่านข้อมูลจาก Firestore ไม่สำเร็จ:", ผิดพลาด);
     showConfigWarning("อ่านข้อมูลจาก Firestore ไม่สำเร็จ (" + ผิดพลาด.message + ")");
-    ใบลาทั้งหมด = ใบลาที่ยื่นใหม่;
+    ใบลาทั้งหมด = [];
   }
 
   // เรียงจากเก่าไปใหม่ตามวันที่ยื่น
