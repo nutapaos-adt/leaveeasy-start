@@ -138,6 +138,11 @@ textarea { min-height: 110px; resize: vertical; }
 .field-row { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 7px 0; border-bottom: 1px dashed var(--สีขอบ); }
 .field-row .k { min-width: 150px; font-weight: 700; }
 
+/* ── หน้าล็อกอิน / สมัครสมาชิก ── */
+.auth-container { max-width: 420px; margin: 60px auto; padding: 0 16px; }
+.auth-container h1 { text-align: center; }
+.auth-container .subtitle { text-align: center; }
+
 /* ── มือถือ ── */
 @media (max-width: 640px) {
   body { font-size: 16px; }

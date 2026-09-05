@@ -3,7 +3,8 @@
 // สัปดาห์ที่ 6 (ต้นสัปดาห์): อ่านจากข้อมูลปลอม และเปลี่ยนสถานะในหน่วยความจำ
 // ─────────────────────────────────────────────────────────────
 
-(function () {
+(async function () {
+  var ผู้ใช้ปัจจุบัน = await รอผู้ใช้ปัจจุบัน();
   var รหัสใบลา = ค่าจากURL("id");
   var กล่องใบลา = document.getElementById("กล่องใบลา");
   var กล่องความเห็น = document.getElementById("กล่องความเห็น");
@@ -20,9 +21,18 @@
 
   var ความเห็น = window.LEAVE_DATA.approvals.filter(function (c) { return c.requestId === ใบ.id; });
 
+  var เป็นผู้อนุมัติหรือฝ่ายบุคคล = ผู้ใช้ปัจจุบัน.role === "manager" || ผู้ใช้ปัจจุบัน.role === "hr";
+  var เป็นเจ้าของใบลา = ใบ.requesterId === ผู้ใช้ปัจจุบัน.uid;
+  var ลบได้ = ผู้ใช้ปัจจุบัน.role === "employee" && เป็นเจ้าของใบลา;
+
   วาดใบลา();
   วาดความเห็น();
   กล่องความเห็น.classList.remove("hidden");
+
+  // ตาม ACL.md — employee เขียนความเห็นได้เฉพาะใบของตัวเอง ส่วนผู้อนุมัติ/ฝ่ายบุคคลเขียนได้ทุกใบ
+  if (!เป็นผู้อนุมัติหรือฝ่ายบุคคล && !เป็นเจ้าของใบลา) {
+    document.getElementById("เขียนความเห็น").classList.add("hidden");
+  }
 
   document.getElementById("ปุ่มส่งความเห็น").addEventListener("click", ส่งความเห็น);
 
@@ -43,22 +53,31 @@
       return '<div class="field-row"><span class="k">' + r[0] + "</span><span>" + r[1] + "</span></div>";
     }).join("");
 
-    // ปุ่มอนุมัติ / ไม่อนุมัติ ขึ้นเฉพาะใบที่ยังรอพิจารณา
-    if (ใบ.status === "รอพิจารณา") {
+    // ปุ่มอนุมัติ / ไม่อนุมัติ ขึ้นเฉพาะใบที่ยังรอพิจารณา และเฉพาะผู้อนุมัติ/ฝ่ายบุคคล (ตาม ACL.md)
+    if (ใบ.status === "รอพิจารณา" && เป็นผู้อนุมัติหรือฝ่ายบุคคล) {
       html +=
         '<div class="btn-row">' +
         '<button type="button" class="btn-ok" id="ปุ่มอนุมัติ">อนุมัติ</button>' +
         '<button type="button" class="btn-danger" id="ปุ่มไม่อนุมัติ">ไม่อนุมัติ</button>' +
         "</div>";
+    } else if (ใบ.status === "รอพิจารณา" && ลบได้) {
+      html +=
+        '<p class="hint">รอหัวหน้าพิจารณา</p>' +
+        '<div class="btn-row"><button type="button" class="btn-danger" id="ปุ่มลบใบลา">ลบใบลานี้</button></div>';
+    } else if (ใบ.status === "รอพิจารณา") {
+      html += '<p class="hint">รอหัวหน้าพิจารณา</p>';
     } else {
       html += '<p class="hint">ใบนี้พิจารณาแล้ว จึงเปลี่ยนสถานะต่อไม่ได้</p>';
     }
 
     กล่องใบลา.innerHTML = html;
 
-    if (ใบ.status === "รอพิจารณา") {
+    if (ใบ.status === "รอพิจารณา" && เป็นผู้อนุมัติหรือฝ่ายบุคคล) {
       document.getElementById("ปุ่มอนุมัติ").addEventListener("click", function () { เปลี่ยนสถานะ("อนุมัติ"); });
       document.getElementById("ปุ่มไม่อนุมัติ").addEventListener("click", function () { เปลี่ยนสถานะ("ไม่อนุมัติ"); });
+    }
+    if (document.getElementById("ปุ่มลบใบลา")) {
+      document.getElementById("ปุ่มลบใบลา").addEventListener("click", ลบใบลา);
     }
   }
 
@@ -71,6 +90,15 @@
     }
     ใบ.status = สถานะใหม่;   // แก้เฉพาะช่อง status เท่านั้น
     วาดใบลา();
+  }
+
+  // ── ลบใบลา (เฉพาะเจ้าของที่เป็น employee และยังรอพิจารณา) ──
+  function ลบใบลา() {
+    if (!confirm('ยืนยันการลบใบลา "' + ใบ.title + '" หรือไม่ — ลบแล้วกู้คืนไม่ได้')) return;
+    var รายการที่ยื่นใหม่ = JSON.parse(sessionStorage.getItem("ใบลาที่ยื่นใหม่") || "[]");
+    sessionStorage.setItem("ใบลาที่ยื่นใหม่",
+      JSON.stringify(รายการที่ยื่นใหม่.filter(function (x) { return x.id !== ใบ.id; })));
+    location.href = "leave-requests.html";
   }
 
   // ── รายการความเห็น เรียงจากเก่าไปใหม่ ──
@@ -102,11 +130,10 @@
     }
     เตือน.classList.add("hidden");
 
-    // สัปดาห์ที่ 6 ยังไม่มีล็อกอิน จึงสมมติว่าผู้เขียนคือ สมหญิง รักงาน
     ความเห็น.push({
       id: "ap-ใหม่-" + Date.now(),
       requestId: ใบ.id,
-      authorId: "u002", authorName: "สมหญิง รักงาน",
+      authorId: ผู้ใช้ปัจจุบัน.uid, authorName: ผู้ใช้ปัจจุบัน.name,
       message: ข้อความ,
       createdAt: เวลาตอนนี้()
     });
