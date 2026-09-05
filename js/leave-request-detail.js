@@ -1,24 +1,33 @@
 // ─────────────────────────────────────────────────────────────
 // js/leave-request-detail.js — หน้าที่ 3 รายละเอียดใบลา
-// สัปดาห์ที่ 6 (ต้นสัปดาห์): อ่านจากข้อมูลปลอม และเปลี่ยนสถานะในหน่วยความจำ
+// สัปดาห์ที่ 7: อ่านใบลาและความเห็นจริงจาก Firestore · เปลี่ยนสถานะเขียนจริง
+// (การส่งความเห็นใหม่ยังเก็บไว้แค่ในหน่วยความจำ — ยังไม่เขียนลง Firestore)
 // ─────────────────────────────────────────────────────────────
 
-(function () {
+(async function () {
   var รหัสใบลา = ค่าจากURL("id");
   var กล่องใบลา = document.getElementById("กล่องใบลา");
   var กล่องความเห็น = document.getElementById("กล่องความเห็น");
+  var ใบ, ความเห็น;
 
-  // หาใบลาจากข้อมูลปลอม บวกกับใบที่เพิ่งยื่นในหน้าที่ 2
-  var ใบลาที่ยื่นใหม่ = JSON.parse(sessionStorage.getItem("ใบลาที่ยื่นใหม่") || "[]");
-  var ใบ = window.LEAVE_DATA.leaveRequests.concat(ใบลาที่ยื่นใหม่)
-    .find(function (x) { return x.id === รหัสใบลา; });
+  try {
+    var เอกสาร = await window.db.collection("leaveRequests").doc(รหัสใบลา).get();
+    if (!เอกสาร.exists) {
+      กล่องใบลา.innerHTML = "<p>ไม่พบใบขอลาที่ต้องการ — อาจถูกลบไปแล้ว หรือลิงก์ไม่ถูกต้อง</p>";
+      return;
+    }
+    ใบ = Object.assign({ id: เอกสาร.id }, เอกสาร.data());
 
-  if (!ใบ) {
-    กล่องใบลา.innerHTML = "<p>ไม่พบใบขอลาที่ต้องการ — อาจถูกลบไปแล้ว หรือลิงก์ไม่ถูกต้อง</p>";
+    var ผลลัพธ์ความเห็น = await window.db.collection("leaveRequests").doc(รหัสใบลา).collection("approvals").get();
+    ความเห็น = [];
+    ผลลัพธ์ความเห็น.forEach(function (แถว) {
+      ความเห็น.push(Object.assign({ id: แถว.id }, แถว.data()));
+    });
+  } catch (ผิดพลาด) {
+    console.error("อ่านข้อมูลจาก Firestore ไม่สำเร็จ:", ผิดพลาด);
+    showConfigWarning("อ่านข้อมูลจาก Firestore ไม่สำเร็จ (" + ผิดพลาด.message + ")");
     return;
   }
-
-  var ความเห็น = window.LEAVE_DATA.approvals.filter(function (c) { return c.requestId === ใบ.id; });
 
   วาดใบลา();
   วาดความเห็น();
@@ -43,12 +52,13 @@
       return '<div class="field-row"><span class="k">' + r[0] + "</span><span>" + r[1] + "</span></div>";
     }).join("");
 
-    // ปุ่มอนุมัติ / ไม่อนุมัติ ขึ้นเฉพาะใบที่ยังรอพิจารณา
+    // ปุ่มอนุมัติ / ไม่อนุมัติ / ลบ ขึ้นเฉพาะใบที่ยังรอพิจารณา
     if (ใบ.status === "รอพิจารณา") {
       html +=
         '<div class="btn-row">' +
         '<button type="button" class="btn-ok" id="ปุ่มอนุมัติ">อนุมัติ</button>' +
         '<button type="button" class="btn-danger" id="ปุ่มไม่อนุมัติ">ไม่อนุมัติ</button>' +
+        '<button type="button" class="btn-danger" id="ปุ่มลบ">ลบใบลา</button>' +
         "</div>";
     } else {
       html += '<p class="hint">ใบนี้พิจารณาแล้ว จึงเปลี่ยนสถานะต่อไม่ได้</p>';
@@ -59,18 +69,45 @@
     if (ใบ.status === "รอพิจารณา") {
       document.getElementById("ปุ่มอนุมัติ").addEventListener("click", function () { เปลี่ยนสถานะ("อนุมัติ"); });
       document.getElementById("ปุ่มไม่อนุมัติ").addEventListener("click", function () { เปลี่ยนสถานะ("ไม่อนุมัติ"); });
+      document.getElementById("ปุ่มลบ").addEventListener("click", ลบใบลา);
     }
   }
 
-  // ── เปลี่ยนสถานะ (สัปดาห์นี้เปลี่ยนแค่ในหน่วยความจำ) ──
-  function เปลี่ยนสถานะ(สถานะใหม่) {
+  // ── ลบใบลา — ต้องยืนยันก่อนทุกครั้ง ──
+  async function ลบใบลา() {
+    if (!confirm("ยืนยันลบใบลานี้? การลบไม่สามารถย้อนกลับได้")) {
+      return;
+    }
+    try {
+      await window.db.collection("leaveRequests").doc(ใบ.id).delete();
+      location.href = "leave-requests.html";
+    } catch (ผิดพลาด) {
+      console.error("ลบใบลาไม่สำเร็จ:", ผิดพลาด);
+      alert("ลบไม่สำเร็จ (" + ผิดพลาด.message + ") — ลองใหม่อีกครั้ง");
+    }
+  }
+
+  // ── เปลี่ยนสถานะ — เขียนจริงลง Firestore เฉพาะช่อง status ──
+  async function เปลี่ยนสถานะ(สถานะใหม่) {
     // กฎ: จะไม่อนุมัติได้ ต้องมีความเห็นอย่างน้อย 1 รายการก่อน
     if (สถานะใหม่ === "ไม่อนุมัติ" && ความเห็น.length === 0) {
       alert("ต้องเขียนความเห็นอย่างน้อย 1 รายการก่อน จึงจะกดไม่อนุมัติได้");
       return;
     }
-    ใบ.status = สถานะใหม่;   // แก้เฉพาะช่อง status เท่านั้น
-    วาดใบลา();
+
+    document.getElementById("ปุ่มอนุมัติ").disabled = true;
+    document.getElementById("ปุ่มไม่อนุมัติ").disabled = true;
+
+    try {
+      await window.db.collection("leaveRequests").doc(ใบ.id).update({ status: สถานะใหม่ });
+      ใบ.status = สถานะใหม่;   // แก้เฉพาะช่อง status เท่านั้น
+      วาดใบลา();
+    } catch (ผิดพลาด) {
+      console.error("เปลี่ยนสถานะไม่สำเร็จ:", ผิดพลาด);
+      alert("เปลี่ยนสถานะไม่สำเร็จ (" + ผิดพลาด.message + ") — ลองใหม่อีกครั้ง");
+      document.getElementById("ปุ่มอนุมัติ").disabled = false;
+      document.getElementById("ปุ่มไม่อนุมัติ").disabled = false;
+    }
   }
 
   // ── รายการความเห็น เรียงจากเก่าไปใหม่ ──
