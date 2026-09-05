@@ -13,6 +13,9 @@ node_modules/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ── แคชของ Firebase CLI ตอน deploy (สร้างใหม่ได้เสมอ ไม่ต้องเก็บ) ──
+.firebase/
 *.log
 .vscode/
 .idea/
