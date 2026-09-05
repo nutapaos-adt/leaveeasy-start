@@ -1,0 +1,12 @@
+{
+  "cleanUrls": false,
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/index", "destination": "/index.html" },
+    { "source": "/leave-requests", "destination": "/leave-requests.html" },
+    { "source": "/new-leave-request", "destination": "/new-leave-request.html" },
+    { "source": "/leave-request-detail", "destination": "/leave-request-detail.html" },
+    { "source": "/leave-types", "destination": "/leave-types.html" },
+    { "source": "/seed-firestore", "destination": "/seed-firestore.html" }
+  ]
+}
