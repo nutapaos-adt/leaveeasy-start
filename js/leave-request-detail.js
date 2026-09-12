@@ -39,6 +39,14 @@
   วาดความเห็น();
   กล่องความเห็น.classList.remove("hidden");
 
+  // กล่องผู้ช่วย AI สรุปใบลา — ให้เห็นเฉพาะคนที่มีสิทธิ์อนุมัติ (คนที่ต้องอ่านสรุปก่อนกดอนุมัติ)
+  var กล่องสรุปAI = document.getElementById("กล่องสรุปAI");
+  if (เป็นผู้อนุมัติหรือฝ่ายบุคคล) {
+    กล่องสรุปAI.classList.remove("hidden");
+    วาดสรุปAI();
+    document.getElementById("ปุ่มสรุปAI").addEventListener("click", สรุปด้วยAI);
+  }
+
   // ตาม ACL.md — employee เขียนความเห็นได้เฉพาะใบของตัวเอง ส่วนผู้อนุมัติ/ฝ่ายบุคคลเขียนได้ทุกใบ
   if (!เป็นผู้อนุมัติหรือฝ่ายบุคคล && !เป็นเจ้าของใบลา) {
     document.getElementById("เขียนความเห็น").classList.add("hidden");
@@ -164,5 +172,84 @@
     });
     ช่อง.value = "";
     วาดความเห็น();
+  }
+
+  // ── แสดงสรุปล่าสุดจาก AI (ถ้ามี) ──
+  function วาดสรุปAI() {
+    var ที่วาง = document.getElementById("เนื้อหาสรุปAI");
+    ที่วาง.innerHTML = ใบ.aiSuggestion
+      ? '<p class="alert alert-ai">🤖 ' + esc(ใบ.aiSuggestion) + "</p>"
+      : '<p class="hint">ยังไม่มีสรุปจาก AI</p>';
+  }
+
+  // ── ให้ AI อ่านใบลา + ความเห็นที่มีอยู่ แล้วสรุปสั้น ๆ ให้หัวหน้าอ่านก่อนกดอนุมัติ ──
+  async function สรุปด้วยAI() {
+    var ปุ่ม = document.getElementById("ปุ่มสรุปAI");
+    var เตือน = document.getElementById("เตือนสรุปAI");
+    เตือน.classList.add("hidden");
+
+    // ขั้นที่ 1 — อ่านใบลาใบนี้ (รวมความเห็นที่มีอยู่แล้ว) มาประกอบเป็น context
+    var บริบท = "หัวข้อ: " + ใบ.title + "\n" +
+      "ประเภทการลา: " + ใบ.leaveTypeName + "\n" +
+      "เหตุผล: " + ใบ.reason + "\n" +
+      "วันที่ลา: " + ใบ.startDate + " ถึง " + ใบ.endDate + "\n" +
+      "ผู้ขอลา: " + ใบ.requesterName + "\n" +
+      "ความเห็นที่มีอยู่แล้ว: " + (ความเห็น.length
+        ? ความเห็น.map(function (c) { return c.authorName + ": " + c.message; }).join(" / ")
+        : "ยังไม่มีความเห็น");
+
+    ปุ่ม.disabled = true;
+    ปุ่ม.textContent = "AI กำลังสรุป...";
+
+    var ตัวตัดเวลา = new AbortController();
+    var หมดเวลา = setTimeout(function () { ตัวตัดเวลา.abort(); }, 15000);
+
+    try {
+      // ขั้นที่ 2 — เขียนสรุปสั้น ๆ
+      var ผลลัพธ์ = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        signal: ตัวตัดเวลา.signal,
+        headers: {
+          "Authorization": "Bearer " + window.OPENROUTER_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: window.OPENROUTER_MODEL,
+          messages: [{
+            role: "user",
+            content: "นี่คือใบขอลาในระบบ HR:\n" + บริบท + "\n\n" +
+              "สรุปใบลานี้เป็นภาษาไทยสั้น ๆ ไม่เกิน 3 ประโยค ให้หัวหน้าอ่านก่อนตัดสินใจอนุมัติหรือไม่อนุมัติ " +
+              "ตอบเฉพาะเนื้อสรุป ห้ามแนะนำว่าควรอนุมัติหรือไม่อนุมัติ"
+          }]
+        })
+      });
+
+      var ข้อมูล = await ผลลัพธ์.json();
+      if (!ผลลัพธ์.ok) {
+        throw new Error((ข้อมูล.error && ข้อมูล.error.message) || "เรียก API ไม่สำเร็จ");
+      }
+      var สรุป = ข้อมูล.choices[0].message.content.trim();
+
+      // ขั้นที่ 3 — เขียนสรุปกลับลงฐาน: อัปเดตช่อง aiSuggestion + จดบันทึกใน aiLog
+      await window.db.collection("leaveRequests").doc(ใบ.id).update({ aiSuggestion: สรุป });
+      await window.db.collection("leaveRequests").doc(ใบ.id).collection("aiLog").add({
+        input: บริบท,
+        output: สรุป,
+        createdAt: เวลาตอนนี้()
+      });
+
+      ใบ.aiSuggestion = สรุป;
+      วาดสรุปAI();
+    } catch (ผิดพลาด) {
+      console.error("สรุปใบลาด้วย AI ไม่สำเร็จ:", ผิดพลาด);
+      เตือน.textContent = ผิดพลาด.name === "AbortError"
+        ? "⚠️ AI ตอบช้าเกิน 15 วินาที — ลองใหม่อีกครั้ง"
+        : "⚠️ สรุปด้วย AI ไม่สำเร็จ — ลองใหม่อีกครั้ง";
+      เตือน.classList.remove("hidden");
+    } finally {
+      clearTimeout(หมดเวลา);
+      ปุ่ม.disabled = false;
+      ปุ่ม.textContent = "ให้ AI ช่วยสรุปใบลาให้หัวหน้าอ่านก่อนกดอนุมัติ";
+    }
   }
 })();
