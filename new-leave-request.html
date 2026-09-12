@@ -13,6 +13,7 @@
   <script src="js/firebase-config.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/data.js" defer></script>
+  <script src="js/openrouter.secret.js" defer></script>
   <script src="js/new-leave-request.js" defer></script>
 </head>
 <body>
@@ -36,6 +37,12 @@
         <select id="leaveTypeId">
           <option value="">— เลือกประเภทการลา —</option>
         </select>
+
+        <div class="btn-row">
+          <button type="button" id="ปุ่มให้AIจัดประเภท" class="btn-ghost">ให้ AI ช่วยจัดประเภทการลา</button>
+        </div>
+        <p id="ป้ายAI" class="alert alert-ai hidden">🤖 ข้อเสนอจาก AI — โปรดตรวจสอบก่อนยืนยัน</p>
+        <p id="ข้อความเตือนAI" class="alert alert-error hidden"></p>
 
         <label for="startDate">วันที่เริ่มลา</label>
         <input type="date" id="startDate">
